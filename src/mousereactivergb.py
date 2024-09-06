@@ -108,8 +108,8 @@ class MouseReactiveRGB(QMainWindow):
             self.retry_timer.start(1000)
 
     def on_connection_failure(self, error_message):
-        # print(f"Error connecting to OpenRGB: {error_message}. Retrying in 1 second.")
         print(f"{error_message}")
+        self.ui.connectionStatusButton.setText("Disonnected ❌")
         self.retry_timer.start(1000)
 
     def start_listener(self):
@@ -221,6 +221,7 @@ class MouseReactiveRGB(QMainWindow):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(icon)
         self.tray_icon.setVisible(True)
+        self.tray_icon.setToolTip("Mouse Reactive RGB")
         menu = QMenu()
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.cleanup)
