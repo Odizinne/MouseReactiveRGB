@@ -7,9 +7,15 @@ from openrgb.utils import RGBColor, DeviceType
 from pynput.mouse import Listener
 from color_utils import set_frame_color_based_on_window
 import os
+import sys
 import threading
 import json
 import random
+
+if sys.platform == "win32":
+    settings_file = os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
+else:
+    settings_file = os.path.join(os.getenv("HOME"), ".config", "MouseReactiveRGB", "settings.json")
 
 
 class ConnectionWorker(QObject):
@@ -33,7 +39,7 @@ class ConnectionWorker(QObject):
                     if "Direct" in supported_modes:
                         self.device = device
                         self.device.set_mode("Direct")
-                        self.device.set_color(RGBColor(0, 0, 0))
+                        self.device.set_color(RGBColor(0, 0, 0), fast=True)
                         self.connected.emit()
                         print(f"{device.name}: direct mode supported.")
                         print(f"Using compatible device: {device.name}")
@@ -52,7 +58,7 @@ class MouseReactiveRGB(QMainWindow):
         self.setWindowIcon(QIcon("resources/icon.png"))
         self.initial_color = RGBColor(0, 0, 0)
         self.current_color = self.initial_color
-        self.settings_file = os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
+        self.settings_file = settings_file
         set_frame_color_based_on_window(self, self.ui.frame)
         set_frame_color_based_on_window(self, self.ui.frame_2)
         self.load_settings()
@@ -84,6 +90,7 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.portSpinBox.valueChanged.connect(self.save_settings)
         self.ui.fadeDurationSlider.sliderReleased.connect(self.save_settings)
         self.ui.randomCheckBox.stateChanged.connect(self.save_settings)
+        self.ui.fpsSpinBox.valueChanged.connect(self.save_settings)
 
     def retry_connection(self):
         ip = self.ui.ipLineEdit.text()
@@ -100,7 +107,7 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.connectionStatusButton.setText("Connected ✅")
         self.mouse = self.connection_worker.device
         if self.mouse:
-            self.mouse.set_color(self.initial_color)
+            self.mouse.set_color(self.initial_color, fast=True)
             self.retry_timer.stop()
         else:
             self.connected = False
@@ -129,13 +136,15 @@ class MouseReactiveRGB(QMainWindow):
         self.start_reactive_effect()
 
     def start_reactive_effect(self):
+        if not self.mouse.active_mode == 1:
+            print("Mouse is not in direct mode.")
+            return
+
         if self.ui.randomCheckBox.isChecked():
-            # Use random color
             r = random.randint(0, 255)
             g = random.randint(0, 255)
             b = random.randint(0, 255)
         else:
-            # Use User color
             r = self.ui.rSpinBox.value()
             g = self.ui.gSpinBox.value()
             b = self.ui.bSpinBox.value()
@@ -143,44 +152,52 @@ class MouseReactiveRGB(QMainWindow):
         self.current_color = RGBColor(r, g, b)
         if self.mouse:
             try:
-                self.mouse.set_color(self.current_color)
+                self.mouse.set_color(self.current_color, fast=True)
             except Exception as e:
                 self.retry_timer.start()
                 return
-        self.current_step = 0
+
         self.fade_duration = self.ui.fadeDurationSlider.value()
-        self.fade_timer.start(self.fade_duration // self.steps)
+        self.target_fps = self.ui.fpsSpinBox.value()
+        self.frame_interval = 1000 // self.target_fps
+        self.total_frames = self.fade_duration // self.frame_interval
+        self.current_frame = 0
+
+        self.fade_timer.start(self.frame_interval)
 
     def fade_out(self):
-        if self.current_step >= self.steps:
+        if self.current_frame >= self.total_frames:
             if self.mouse:
                 try:
-                    self.mouse.set_color(RGBColor(0, 0, 0))
+                    self.mouse.set_color(RGBColor(0, 0, 0), fast=True)
                 except Exception as e:
                     self.retry_timer.start()
                     return
             self.fade_timer.stop()
             return
 
-        fade_factor = (self.steps - self.current_step) / self.steps
+        fade_factor = (self.total_frames - self.current_frame) / self.total_frames
         faded_color = RGBColor(
             max(0, int(self.current_color.red * fade_factor)),
             max(0, int(self.current_color.green * fade_factor)),
             max(0, int(self.current_color.blue * fade_factor)),
         )
+
         if self.mouse:
             try:
-                self.mouse.set_color(faded_color)
+                self.mouse.set_color(faded_color, fast=True)
             except Exception as e:
                 self.retry_timer.start()
                 return
-        self.current_step += 1
+
+        self.current_frame += 1
 
     def create_default_settings(self):
         self.ui.rSpinBox.setValue(255)
         self.ui.gSpinBox.setValue(66)
         self.ui.bSpinBox.setValue(0)
         self.ui.fadeDurationSlider.setValue(500)
+        self.ui.fpsSpinBox.setValue(60)
 
     def load_settings(self):
         os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
@@ -196,6 +213,7 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.ipLineEdit.setText(settings["ip"])
                 self.ui.portSpinBox.setValue(settings["port"])
                 self.ui.randomCheckBox.setChecked(settings["random"])
+                self.ui.fpsSpinBox.setValue(settings["fps"])
 
             else:
                 self.create_default_settings()
@@ -212,6 +230,7 @@ class MouseReactiveRGB(QMainWindow):
             "ip": self.ui.ipLineEdit.text(),
             "port": self.ui.portSpinBox.value(),
             "random": self.ui.randomCheckBox.isChecked(),
+            "fps": self.ui.fpsSpinBox.value(),
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
@@ -234,5 +253,5 @@ class MouseReactiveRGB(QMainWindow):
     def cleanup(self):
         self.retry_timer.stop()
         if self.mouse:
-            self.mouse.set_color(RGBColor(0, 0, 0))
+            self.mouse.set_color(RGBColor(0, 0, 0), fast=True)
         QApplication.quit()
