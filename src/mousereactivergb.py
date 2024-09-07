@@ -59,14 +59,15 @@ class MouseReactiveRGB(QMainWindow):
         self.initial_color = RGBColor(0, 0, 0)
         self.current_color = self.initial_color
         self.settings_file = settings_file
+        self.client = None
+        self.mouse = None
+        self.connected = False
+        self.run_effect = False
         set_frame_color_based_on_window(self, self.ui.frame)
         set_frame_color_based_on_window(self, self.ui.frame_2)
         self.load_settings()
         self.connect_ui_signals()
         self.create_tray_icon()
-        self.client = None
-        self.mouse = None
-        self.connected = False
 
         self.retry_timer = QTimer(self)
         self.retry_timer.timeout.connect(self.retry_connection)
@@ -91,6 +92,8 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.fadeDurationSlider.sliderReleased.connect(self.save_settings)
         self.ui.randomCheckBox.stateChanged.connect(self.save_settings)
         self.ui.fpsSpinBox.valueChanged.connect(self.save_settings)
+        self.ui.autostartCheckBox.stateChanged.connect(self.save_settings)
+        self.ui.startstopButton.clicked.connect(self.on_startstopButton_clicked)
 
     def retry_connection(self):
         ip = self.ui.ipLineEdit.text()
@@ -138,6 +141,9 @@ class MouseReactiveRGB(QMainWindow):
     def start_reactive_effect(self):
         if not self.mouse.active_mode == 1:
             print("Mouse is not in direct mode.")
+            return
+
+        if not self.run_effect:
             return
 
         if self.ui.randomCheckBox.isChecked():
@@ -214,6 +220,11 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.portSpinBox.setValue(settings["port"])
                 self.ui.randomCheckBox.setChecked(settings["random"])
                 self.ui.fpsSpinBox.setValue(settings["fps"])
+                self.ui.autostartCheckBox.setChecked(settings["autostart"])
+
+                if settings["autostart"]:
+                    self.ui.startstopButton.setText("Stop effect")
+                    self.run_effect = True
 
             else:
                 self.create_default_settings()
@@ -231,6 +242,7 @@ class MouseReactiveRGB(QMainWindow):
             "port": self.ui.portSpinBox.value(),
             "random": self.ui.randomCheckBox.isChecked(),
             "fps": self.ui.fpsSpinBox.value(),
+            "autostart": self.ui.autostartCheckBox.isChecked(),
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
@@ -255,3 +267,13 @@ class MouseReactiveRGB(QMainWindow):
         if self.mouse:
             self.mouse.set_color(RGBColor(0, 0, 0), fast=True)
         QApplication.quit()
+
+    def on_startstopButton_clicked(self):
+        if self.ui.startstopButton.text() == "Start effect":
+            self.ui.startstopButton.setText("Stop effect")
+            self.run_effect = True
+        else:
+            self.ui.startstopButton.setText("Start effect")
+            self.fade_timer.stop()
+            self.run_effect = False
+            self.mouse.set_color(RGBColor(0, 0, 0))
