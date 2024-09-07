@@ -2,8 +2,6 @@
 
 Reactive effect on mouse left / right button press.
 
-Windows only.
-
 ![image](assets/screenshot.png)
 
 Requires OpenRGB server running.
