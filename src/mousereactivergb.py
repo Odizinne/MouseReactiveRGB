@@ -40,6 +40,8 @@ class MouseReactiveRGB(QMainWindow):
         self.mouse = None
         self.connected = False
         self.run_effect = False
+        self.first_run = False
+
         set_frame_color_based_on_window(self, self.ui.frame)
         set_frame_color_based_on_window(self, self.ui.frame_2)
         self.load_settings()
@@ -59,6 +61,9 @@ class MouseReactiveRGB(QMainWindow):
         self.listener_thread.start()
 
         self.retry_timer.start(1000)
+
+        if self.first_run:
+            self.show()
 
     def connect_ui_signals(self):
         self.ui.rSpinBox.valueChanged.connect(self.save_settings)
@@ -236,6 +241,7 @@ class MouseReactiveRGB(QMainWindow):
 
             else:
                 self.create_default_settings()
+                self.first_run = True
         except Exception as e:
             print(f"Unexpected error: {e}")
         self.save_settings()
