@@ -11,6 +11,7 @@ import sys
 import threading
 import json
 import random
+import psutil
 
 if sys.platform == "win32":
     settings_file = os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
@@ -18,36 +19,12 @@ else:
     settings_file = os.path.join(os.getenv("HOME"), ".config", "MouseReactiveRGB", "settings.json")
 
 
-class ConnectionWorker(QObject):
-    connected = pyqtSignal()
-    failed = pyqtSignal(str)
-
-    def __init__(self, ip, port):
-        super().__init__()
-        self.ip = ip
-        self.port = port
-        self.client = None
-
-    def run(self):
-        try:
-            self.client = OpenRGBClient(self.ip, self.port, "G502 Reactive RGB")
-            devices = self.client.devices
-            for device in devices:
-                if device.type == DeviceType.MOUSE:
-                    print(f"{device.name}: is a mouse")
-                    supported_modes = [mode.name for mode in device.modes]
-                    if "Direct" in supported_modes:
-                        self.device = device
-                        self.device.set_mode("Direct")
-                        self.device.set_color(RGBColor(0, 0, 0), fast=True)
-                        self.connected.emit()
-                        print(f"{device.name}: direct mode supported.")
-                        print(f"Using compatible device: {device.name}")
-                        return
-                    else:
-                        self.failed.emit(f"{device.name}: direct mode not supported.")
-        except Exception as e:
-            self.failed.emit(str(e))
+def is_openrgb_running():
+    openrgb_executable = "openrgb.exe" if sys.platform == "win32" else "openrgb"
+    for process in psutil.process_iter(["pid", "name"]):
+        if process.info["name"].lower() == openrgb_executable:
+            return True
+    return False
 
 
 class MouseReactiveRGB(QMainWindow):
@@ -81,7 +58,7 @@ class MouseReactiveRGB(QMainWindow):
         self.listener_thread = threading.Thread(target=self.start_listener, daemon=True)
         self.listener_thread.start()
 
-        self.retry_connection()
+        self.retry_timer.start(1000)
 
     def connect_ui_signals(self):
         self.ui.rSpinBox.valueChanged.connect(self.save_settings)
@@ -95,32 +72,59 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.autostartCheckBox.stateChanged.connect(self.save_settings)
         self.ui.startstopButton.clicked.connect(self.on_startstopButton_clicked)
 
-    def retry_connection(self):
+    def connect_to_openrgb(self):
         ip = self.ui.ipLineEdit.text()
         port = self.ui.portSpinBox.value()
-        self.connection_worker = ConnectionWorker(ip, port)
-        self.connection_worker.connected.connect(self.on_connection_success)
-        self.connection_worker.failed.connect(self.on_connection_failure)
 
-        self.connection_thread = threading.Thread(target=self.connection_worker.run)
-        self.connection_thread.start()
+        if not is_openrgb_running():
+            return False
+
+        try:
+            self.client = OpenRGBClient(ip, port, "G502 Reactive RGB")
+
+            devices = self.client.devices
+            for device in devices:
+                if device.type == DeviceType.MOUSE:
+                    print(f"Found mouse: {device.name}")
+                    if "Direct" in [mode.name for mode in device.modes]:
+                        self.mouse = device
+                        self.mouse.set_mode("Direct")
+                        self.mouse.set_color(self.initial_color, fast=True)
+                        print(f"Connected to {device.name} in Direct mode.")
+                        return True
+                    else:
+                        print(f"{device.name}: Direct mode not supported.")
+            return False
+        except Exception as e:
+            print(f"Failed to connect to OpenRGB: {e}")
+            return False
+
+    def disconnect_from_openrgb(self):
+        if self.client:
+            try:
+                self.client.disconnect()
+                self.client = None
+                self.connected = False
+                print("Disconnected from OpenRGB.")
+            except Exception as e:
+                print(f"Failed to disconnect: {e}")
+
+    def retry_connection(self):
+        if not self.connected:
+            if self.connect_to_openrgb():
+                self.on_connection_success()
+            else:
+                self.on_connection_failure()
 
     def on_connection_success(self):
         self.connected = True
         self.ui.connectionStatusButton.setText("Connected ✅")
-        self.mouse = self.connection_worker.device
-        if self.mouse:
-            self.mouse.set_color(self.initial_color, fast=True)
-            self.retry_timer.stop()
-        else:
-            self.connected = False
-            self.ui.connectionStatusButton.setText("Disonnected ❌")
-            self.retry_timer.start(1000)
+        self.retry_timer.stop()  # Stop retrying since we're connected
 
-    def on_connection_failure(self, error_message):
-        print(f"{error_message}")
-        self.ui.connectionStatusButton.setText("Disonnected ❌")
-        self.retry_timer.start(1000)
+    def on_connection_failure(self):
+        self.connected = False
+        self.ui.connectionStatusButton.setText("Disconnected ❌")
+        self.retry_timer.start(1000)  # Continue retrying every second
 
     def start_listener(self):
         with Listener(on_click=self.on_click) as listener:
@@ -139,8 +143,8 @@ class MouseReactiveRGB(QMainWindow):
         self.start_reactive_effect()
 
     def start_reactive_effect(self):
-        if not self.mouse.active_mode == 1:
-            print("Mouse is not in direct mode.")
+        if not self.mouse:
+            print("Mouse is not connected.")
             return
 
         if not self.run_effect:
@@ -156,12 +160,14 @@ class MouseReactiveRGB(QMainWindow):
             b = self.ui.bSpinBox.value()
 
         self.current_color = RGBColor(r, g, b)
-        if self.mouse:
-            try:
-                self.mouse.set_color(self.current_color, fast=True)
-            except Exception as e:
-                self.retry_timer.start()
-                return
+        try:
+            self.mouse.set_color(self.current_color, fast=True)
+        except Exception as e:
+            print(f"Failed to set color: {e}")
+            self.retry_connection()
+            self.connected = False
+            self.retry_timer.start(1000)
+            return
 
         self.fade_duration = self.ui.fadeDurationSlider.value()
         self.target_fps = self.ui.fpsSpinBox.value()
@@ -173,12 +179,13 @@ class MouseReactiveRGB(QMainWindow):
 
     def fade_out(self):
         if self.current_frame >= self.total_frames:
-            if self.mouse:
-                try:
-                    self.mouse.set_color(RGBColor(0, 0, 0), fast=True)
-                except Exception as e:
-                    self.retry_timer.start()
-                    return
+            try:
+                self.mouse.set_color(RGBColor(0, 0, 0), fast=True)
+            except Exception as e:
+                print(f"Failed to set color: {e}")
+                self.connected = False
+                self.retry_connection()
+                self.retry_timer.start(1000)
             self.fade_timer.stop()
             return
 
@@ -189,12 +196,13 @@ class MouseReactiveRGB(QMainWindow):
             max(0, int(self.current_color.blue * fade_factor)),
         )
 
-        if self.mouse:
-            try:
-                self.mouse.set_color(faded_color, fast=True)
-            except Exception as e:
-                self.retry_timer.start()
-                return
+        try:
+            self.mouse.set_color(faded_color, fast=True)
+        except Exception as e:
+            print(f"Failed to set color: {e}")
+            self.connected = False
+            self.retry_timer.start(1000)
+            self.retry_connection()
 
         self.current_frame += 1
 
@@ -264,6 +272,7 @@ class MouseReactiveRGB(QMainWindow):
 
     def cleanup(self):
         self.retry_timer.stop()
+        self.disconnect_from_openrgb()
         if self.mouse:
             self.mouse.set_color(RGBColor(0, 0, 0), fast=True)
         QApplication.quit()
@@ -276,4 +285,5 @@ class MouseReactiveRGB(QMainWindow):
             self.ui.startstopButton.setText("Start effect")
             self.fade_timer.stop()
             self.run_effect = False
-            self.mouse.set_color(RGBColor(0, 0, 0))
+            if self.mouse:
+                self.mouse.set_color(RGBColor(0, 0, 0))
