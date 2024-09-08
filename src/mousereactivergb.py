@@ -385,4 +385,5 @@ class MouseReactiveRGB(QMainWindow):
     def populateComboBox(self):
         self.ui.colorModeComboBox.addItem("Custom")
         self.ui.colorModeComboBox.addItem("Random")
-        self.ui.colorModeComboBox.addItem("Accent")
+        if sys.platform == "win32":
+            self.ui.colorModeComboBox.addItem("Accent")
