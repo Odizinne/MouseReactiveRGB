@@ -76,6 +76,7 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.fpsSpinBox.valueChanged.connect(self.save_settings)
         self.ui.autostartCheckBox.stateChanged.connect(self.save_settings)
         self.ui.startstopButton.clicked.connect(self.on_startstopButton_clicked)
+        self.ui.fadeOnReleaseCheckBox.stateChanged.connect(self.save_settings)
 
     def connect_to_openrgb(self):
         ip = self.ui.ipLineEdit.text()
@@ -124,12 +125,12 @@ class MouseReactiveRGB(QMainWindow):
     def on_connection_success(self):
         self.connected = True
         self.ui.connectionStatusButton.setText("Connected ✅")
-        self.retry_timer.stop()  # Stop retrying since we're connected
+        self.retry_timer.stop()
 
     def on_connection_failure(self):
         self.connected = False
         self.ui.connectionStatusButton.setText("Disconnected ❌")
-        self.retry_timer.start(1000)  # Continue retrying every second
+        self.retry_timer.start(1000)
 
     def start_listener(self):
         with Listener(on_click=self.on_click) as listener:
@@ -140,12 +141,28 @@ class MouseReactiveRGB(QMainWindow):
             return
         if pressed:
             QMetaObject.invokeMethod(self, "trigger_reactive_effect", Qt.ConnectionType.QueuedConnection)
+        else:
+            if self.ui.fadeOnReleaseCheckBox.isChecked():
+                # Start fading only when the mouse button is released
+                QMetaObject.invokeMethod(self, "start_fade_effect", Qt.ConnectionType.QueuedConnection)
 
     @pyqtSlot()
     def trigger_reactive_effect(self):
         if not self.mouse:
             self.retry_connection()
         self.start_reactive_effect()
+
+    @pyqtSlot()
+    def start_fade_effect(self):
+        """Starts the fade-out effect after mouse button is released."""
+        if not self.mouse or not self.run_effect:
+            return
+        self.current_frame = 0
+        self.fade_duration = self.ui.fadeDurationSlider.value()
+        self.target_fps = self.ui.fpsSpinBox.value()
+        self.frame_interval = 1000 // self.target_fps
+        self.total_frames = self.fade_duration // self.frame_interval
+        self.fade_timer.start(self.frame_interval)
 
     def start_reactive_effect(self):
         if not self.mouse:
@@ -174,13 +191,9 @@ class MouseReactiveRGB(QMainWindow):
             self.retry_timer.start(1000)
             return
 
-        self.fade_duration = self.ui.fadeDurationSlider.value()
-        self.target_fps = self.ui.fpsSpinBox.value()
-        self.frame_interval = 1000 // self.target_fps
-        self.total_frames = self.fade_duration // self.frame_interval
-        self.current_frame = 0
-
-        self.fade_timer.start(self.frame_interval)
+        # Only start fading immediately if the fadeOnReleaseCheckBox is not checked
+        if not self.ui.fadeOnReleaseCheckBox.isChecked():
+            self.start_fade_effect()
 
     def fade_out(self):
         if self.current_frame >= self.total_frames:

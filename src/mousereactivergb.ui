@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>300</width>
-    <height>341</height>
+    <height>373</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -372,6 +372,29 @@
          </property>
         </widget>
        </item>
+       <item row="4" column="2">
+        <widget class="QCheckBox" name="fadeOnReleaseCheckBox">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LayoutDirection::RightToLeft</enum>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="label_6">
+         <property name="text">
+          <string>Fade on release</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
     </item>
@@ -398,7 +421,7 @@
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>0</height>
+        <height>25</height>
        </size>
       </property>
       <property name="font">
