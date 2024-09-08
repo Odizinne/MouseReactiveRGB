@@ -21,7 +21,7 @@ Do not ever try to remove direct mode support limitation or you'll burn your con
 
 ## Download
 
-Download latest release and run `MouseReactiveRGB.exe`. It will auto connect to OpenRGB server if found or will wait for it to be available.
+Download latest [release](https://github.com/Odizinne/MouseReactiveRGB/releases/latest) and run `MouseReactiveRGB.exe`. It will auto connect to OpenRGB server if found or will wait for it to be available.
 You can then select desired color / duration / fps.  
 Settings are autosaved
 
