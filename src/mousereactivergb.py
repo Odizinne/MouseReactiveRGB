@@ -225,20 +225,17 @@ class MouseReactiveRGB(QMainWindow):
             self.start_fade_effect()
 
     def fade_out(self):
-        # if self.current_frame == 0:
-        # self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
-        # self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
-
         if self.current_frame >= self.total_frames:
             # Uncomment if mouse is not fully off after fade
 
-            # try:
-            #    #self.mouse.set_color(RGBColor(0, 0, 0))
-            # except Exception as e:
-            #    print(f"Failed to set color: {e}")
-            #    self.connected = False
-            #    self.retry_connection()
-            #    self.retry_timer.start(1000)
+            try:
+                # Set color to black after fade ends
+                self.mouse.set_color(RGBColor(0, 0, 0))
+            except Exception as e:
+                print(f"Failed to set color: {e}")
+                self.connected = False
+                self.retry_connection()
+                self.retry_timer.start(1000)
 
             self.fade_timer.stop()
             return
@@ -360,10 +357,8 @@ class MouseReactiveRGB(QMainWindow):
         self.save_settings()
 
     def hex_to_rgb(self, hex_code):
-        # Remove the '#' if it's present
         hex_code = hex_code.lstrip("#")
 
-        # Convert the hex code to RGB values
         r = int(hex_code[0:2], 16)
         g = int(hex_code[2:4], 16)
         b = int(hex_code[4:6], 16)
@@ -372,7 +367,6 @@ class MouseReactiveRGB(QMainWindow):
 
     def get_accent_color(self):
         if darkdetect.isDark():
-            print(self.hex_to_rgb(winaccent.accent_dark_mode))
             return self.hex_to_rgb(winaccent.accent_dark_mode)
         else:
             return self.hex_to_rgb(winaccent.accent_light_mode)
