@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QMainWindow, QSystemTrayIcon, QMenu, QApplication
-from PyQt6.QtCore import QTimer, Qt, pyqtSlot, QMetaObject, QObject, pyqtSignal
+from PyQt6.QtCore import QTimer, Qt, pyqtSlot, QMetaObject, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
 from ui_mousereactivergb import Ui_MouseReactiveRGB
 from openrgb import OpenRGBClient
@@ -12,7 +12,6 @@ import threading
 import json
 import random
 import psutil
-import time
 
 if sys.platform == "win32":
     settings_file = os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
@@ -47,7 +46,6 @@ class MouseReactiveRGB(QMainWindow):
         self.connected = False
         self.run_effect = False
         self.first_run = False
-        self.loop_color = False
 
         set_frame_color_based_on_window(self, self.ui.frame)
         set_frame_color_based_on_window(self, self.ui.frame_2)
