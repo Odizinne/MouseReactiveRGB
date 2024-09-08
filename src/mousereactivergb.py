@@ -12,6 +12,7 @@ import threading
 import json
 import random
 import psutil
+import time
 
 if sys.platform == "win32":
     settings_file = os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
@@ -30,6 +31,9 @@ def is_openrgb_running():
 # Sometimes sending a single color change command to OpenRGB doesn't work as expected.
 # To ensure the color change is applied, we send the same color change command twice.
 class MouseReactiveRGB(QMainWindow):
+    start_timer_signal = pyqtSignal()
+    stop_timer_signal = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         self.ui = Ui_MouseReactiveRGB()
@@ -43,6 +47,7 @@ class MouseReactiveRGB(QMainWindow):
         self.connected = False
         self.run_effect = False
         self.first_run = False
+        self.loop_color = False
 
         set_frame_color_based_on_window(self, self.ui.frame)
         set_frame_color_based_on_window(self, self.ui.frame_2)
@@ -61,6 +66,12 @@ class MouseReactiveRGB(QMainWindow):
 
         self.listener_thread = threading.Thread(target=self.start_listener, daemon=True)
         self.listener_thread.start()
+
+        self.start_timer_signal.connect(self.start_color_loop)
+        self.stop_timer_signal.connect(self.stop_color_loop)
+
+        self.color_loop_timer = QTimer(self)
+        self.color_loop_timer.timeout.connect(self.color_loop)
 
         self.retry_timer.start(1000)
 
@@ -113,7 +124,6 @@ class MouseReactiveRGB(QMainWindow):
                 self.client.disconnect()
                 self.client = None
                 self.connected = False
-                print("Disconnected from OpenRGB.")
             except Exception as e:
                 print(f"Failed to disconnect: {e}")
 
@@ -138,15 +148,41 @@ class MouseReactiveRGB(QMainWindow):
         with Listener(on_click=self.on_click) as listener:
             listener.join()
 
+    @pyqtSlot()
+    def start_color_loop(self):
+        if self.ui.randomCheckBox.isChecked():
+            self.current_color = RGBColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        else:
+            self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
+        target_fps = self.ui.fpsSpinBox.value()
+        frame_interval = 1000 // target_fps
+        self.color_loop_timer.start(frame_interval)
+
+    @pyqtSlot()
+    def stop_color_loop(self):
+        self.color_loop_timer.stop()
+
     def on_click(self, x, y, button, pressed):
         if not self.connected:
             return
+
         if pressed:
+            if self.ui.fadeOnReleaseCheckBox.isChecked():
+                self.start_timer_signal.emit()
             QMetaObject.invokeMethod(self, "trigger_reactive_effect", Qt.ConnectionType.QueuedConnection)
         else:
             if self.ui.fadeOnReleaseCheckBox.isChecked():
-                # Start fading only when the mouse button is released
+                self.stop_timer_signal.emit()
                 QMetaObject.invokeMethod(self, "start_fade_effect", Qt.ConnectionType.QueuedConnection)
+
+    def color_loop(self):
+        if self.ui.randomCheckBox.isChecked():
+            self.current_color = RGBColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        else:
+            r = self.ui.rSpinBox.value()
+            g = self.ui.gSpinBox.value()
+            b = self.ui.bSpinBox.value()
+            self.mouse.set_color(RGBColor(r, g, b))
 
     @pyqtSlot()
     def trigger_reactive_effect(self):
@@ -156,16 +192,15 @@ class MouseReactiveRGB(QMainWindow):
         # Stop the fade effect if it's running before starting the new reactive effect
         if self.fade_timer.isActive():
             self.fade_timer.stop()
+            self.mouse.set_color(RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value()))
 
         self.start_reactive_effect()
 
     @pyqtSlot()
     def start_fade_effect(self):
-        """Starts the fade-out effect after mouse button is released."""
-        if not self.mouse or not self.run_effect:
+        if not self.mouse:
             return
 
-        # Reset the fade-out state if a new effect is triggered during fading
         self.current_frame = 0
         self.fade_duration = self.ui.fadeDurationSlider.value()
         self.target_fps = self.ui.fpsSpinBox.value()
@@ -177,10 +212,10 @@ class MouseReactiveRGB(QMainWindow):
 
     def start_reactive_effect(self):
         if not self.mouse:
-            print("Mouse is not connected.")
             return
 
         if not self.run_effect:
+            print("Je sais pas qui je suis wtf")
             return
 
         if self.ui.randomCheckBox.isChecked():
@@ -195,26 +230,30 @@ class MouseReactiveRGB(QMainWindow):
         self.current_color = RGBColor(r, g, b)
         try:
             self.mouse.set_color(self.current_color)
-            self.mouse.set_color(self.current_color)
         except Exception as e:
             print(f"Failed to set color: {e}")
             self.retry_connection()
             self.connected = False
             self.retry_timer.start(1000)
             return
-
         if not self.ui.fadeOnReleaseCheckBox.isChecked():
             self.start_fade_effect()
 
     def fade_out(self):
+        if self.current_frame == 0:
+            self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
+
         if self.current_frame >= self.total_frames:
-            try:
-                self.mouse.set_color(RGBColor(0, 0, 0))
-            except Exception as e:
-                print(f"Failed to set color: {e}")
-                self.connected = False
-                self.retry_connection()
-                self.retry_timer.start(1000)
+            # Uncomment if mouse is not fully off after fade
+
+            # try:
+            #    #self.mouse.set_color(RGBColor(0, 0, 0))
+            # except Exception as e:
+            #    print(f"Failed to set color: {e}")
+            #    self.connected = False
+            #    self.retry_connection()
+            #    self.retry_timer.start(1000)
+
             self.fade_timer.stop()
             return
 
@@ -307,7 +346,6 @@ class MouseReactiveRGB(QMainWindow):
         self.retry_timer.stop()
         if self.mouse:
             self.mouse.set_color(RGBColor(0, 0, 0))
-            self.mouse.set_color(RGBColor(0, 0, 0))
         self.disconnect_from_openrgb()
 
         QApplication.quit()
@@ -321,5 +359,4 @@ class MouseReactiveRGB(QMainWindow):
             self.fade_timer.stop()
             self.run_effect = False
             if self.mouse:
-                self.mouse.set_color(RGBColor(0, 0, 0))
                 self.mouse.set_color(RGBColor(0, 0, 0))
