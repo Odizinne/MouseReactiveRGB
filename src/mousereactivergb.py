@@ -191,7 +191,6 @@ class MouseReactiveRGB(QMainWindow):
             self.retry_timer.start(1000)
             return
 
-        # Only start fading immediately if the fadeOnReleaseCheckBox is not checked
         if not self.ui.fadeOnReleaseCheckBox.isChecked():
             self.start_fade_effect()
 
@@ -247,6 +246,7 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.randomCheckBox.setChecked(settings["random"])
                 self.ui.fpsSpinBox.setValue(settings["fps"])
                 self.ui.autostartCheckBox.setChecked(settings["autostart"])
+                self.ui.fadeOnReleaseCheckBox.setChecked(settings["fadeOnRelease"])
 
                 if settings["autostart"]:
                     self.ui.startstopButton.setText("Stop effect")
@@ -270,6 +270,7 @@ class MouseReactiveRGB(QMainWindow):
             "random": self.ui.randomCheckBox.isChecked(),
             "fps": self.ui.fpsSpinBox.value(),
             "autostart": self.ui.autostartCheckBox.isChecked(),
+            "fadeOnRelease": self.ui.fadeOnReleaseCheckBox.isChecked(),
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
