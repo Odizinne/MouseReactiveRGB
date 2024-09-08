@@ -12,6 +12,8 @@ import threading
 import json
 import random
 import psutil
+import darkdetect
+import winaccent
 
 if sys.platform == "win32":
     settings_file = os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
@@ -27,8 +29,6 @@ def is_openrgb_running():
     return False
 
 
-# Sometimes sending a single color change command to OpenRGB doesn't work as expected.
-# To ensure the color change is applied, we send the same color change command twice.
 class MouseReactiveRGB(QMainWindow):
     start_timer_signal = pyqtSignal()
     stop_timer_signal = pyqtSignal()
@@ -46,9 +46,11 @@ class MouseReactiveRGB(QMainWindow):
         self.connected = False
         self.run_effect = False
         self.first_run = False
+        self.looping = None
 
-        set_frame_color_based_on_window(self, self.ui.frame)
-        set_frame_color_based_on_window(self, self.ui.frame_2)
+        set_frame_color_based_on_window(self, self.ui.settingsFrame)
+        set_frame_color_based_on_window(self, self.ui.effectFrame)
+        self.populateComboBox()
         self.load_settings()
         self.connect_ui_signals()
         self.create_tray_icon()
@@ -83,11 +85,11 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.ipLineEdit.editingFinished.connect(self.save_settings)
         self.ui.portSpinBox.valueChanged.connect(self.save_settings)
         self.ui.fadeDurationSlider.sliderReleased.connect(self.save_settings)
-        self.ui.randomCheckBox.stateChanged.connect(self.save_settings)
         self.ui.fpsSpinBox.valueChanged.connect(self.save_settings)
         self.ui.autostartCheckBox.stateChanged.connect(self.save_settings)
         self.ui.startstopButton.clicked.connect(self.on_startstopButton_clicked)
         self.ui.fadeOnReleaseCheckBox.stateChanged.connect(self.save_settings)
+        self.ui.colorModeComboBox.currentIndexChanged.connect(self.on_colorModeComboBox_changed)
 
     def connect_to_openrgb(self):
         ip = self.ui.ipLineEdit.text()
@@ -148,10 +150,7 @@ class MouseReactiveRGB(QMainWindow):
 
     @pyqtSlot()
     def start_color_loop(self):
-        if self.ui.randomCheckBox.isChecked():
-            self.current_color = RGBColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        else:
-            self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
+        self.loop_color = self.get_color()
         target_fps = self.ui.fpsSpinBox.value()
         frame_interval = 1000 // target_fps
         self.color_loop_timer.start(frame_interval)
@@ -174,23 +173,16 @@ class MouseReactiveRGB(QMainWindow):
                 QMetaObject.invokeMethod(self, "start_fade_effect", Qt.ConnectionType.QueuedConnection)
 
     def color_loop(self):
-        if self.ui.randomCheckBox.isChecked():
-            self.current_color = RGBColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        else:
-            r = self.ui.rSpinBox.value()
-            g = self.ui.gSpinBox.value()
-            b = self.ui.bSpinBox.value()
-            self.mouse.set_color(RGBColor(r, g, b))
+        self.mouse.set_color(self.loop_color)
 
     @pyqtSlot()
     def trigger_reactive_effect(self):
         if not self.mouse:
             self.retry_connection()
 
-        # Stop the fade effect if it's running before starting the new reactive effect
         if self.fade_timer.isActive():
             self.fade_timer.stop()
-            self.mouse.set_color(RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value()))
+            self.mouse.set_color(self.get_color())
 
         self.start_reactive_effect()
 
@@ -213,20 +205,15 @@ class MouseReactiveRGB(QMainWindow):
             return
 
         if not self.run_effect:
-            print("Je sais pas qui je suis wtf")
             return
 
-        if self.ui.randomCheckBox.isChecked():
-            r = random.randint(0, 255)
-            g = random.randint(0, 255)
-            b = random.randint(0, 255)
-        else:
-            r = self.ui.rSpinBox.value()
-            g = self.ui.gSpinBox.value()
-            b = self.ui.bSpinBox.value()
+        self.current_color = self.get_color()
 
-        self.current_color = RGBColor(r, g, b)
         try:
+            if self.ui.fadeOnReleaseCheckBox.isChecked() and self.ui.colorModeComboBox.currentIndex() == 1:
+                # self.mouse.set_color(self.loop_color)
+                self.current_color = self.loop_color
+
             self.mouse.set_color(self.current_color)
         except Exception as e:
             print(f"Failed to set color: {e}")
@@ -238,8 +225,9 @@ class MouseReactiveRGB(QMainWindow):
             self.start_fade_effect()
 
     def fade_out(self):
-        if self.current_frame == 0:
-            self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
+        # if self.current_frame == 0:
+        # self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
+        # self.current_color = RGBColor(self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value())
 
         if self.current_frame >= self.total_frames:
             # Uncomment if mouse is not fully off after fade
@@ -292,10 +280,15 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.fadeDurationSlider.setValue(settings["fadeDuration"])
                 self.ui.ipLineEdit.setText(settings["ip"])
                 self.ui.portSpinBox.setValue(settings["port"])
-                self.ui.randomCheckBox.setChecked(settings["random"])
                 self.ui.fpsSpinBox.setValue(settings["fps"])
                 self.ui.autostartCheckBox.setChecked(settings["autostart"])
                 self.ui.fadeOnReleaseCheckBox.setChecked(settings["fadeOnRelease"])
+                self.ui.colorModeComboBox.setCurrentIndex(settings["colorMode"])
+
+                enable_custom_color = self.ui.colorModeComboBox.currentIndex() == 0
+                self.ui.rSpinBox.setEnabled(enable_custom_color)
+                self.ui.gSpinBox.setEnabled(enable_custom_color)
+                self.ui.bSpinBox.setEnabled(enable_custom_color)
 
                 if settings["autostart"]:
                     self.ui.startstopButton.setText("Stop effect")
@@ -316,10 +309,10 @@ class MouseReactiveRGB(QMainWindow):
             "fadeDuration": self.ui.fadeDurationSlider.value(),
             "ip": self.ui.ipLineEdit.text(),
             "port": self.ui.portSpinBox.value(),
-            "random": self.ui.randomCheckBox.isChecked(),
             "fps": self.ui.fpsSpinBox.value(),
             "autostart": self.ui.autostartCheckBox.isChecked(),
             "fadeOnRelease": self.ui.fadeOnReleaseCheckBox.isChecked(),
+            "colorMode": self.ui.colorModeComboBox.currentIndex(),
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
@@ -358,3 +351,44 @@ class MouseReactiveRGB(QMainWindow):
             self.run_effect = False
             if self.mouse:
                 self.mouse.set_color(RGBColor(0, 0, 0))
+
+    def on_colorModeComboBox_changed(self):
+        enable_custom_color = self.ui.colorModeComboBox.currentIndex() == 0
+        self.ui.rSpinBox.setEnabled(enable_custom_color)
+        self.ui.gSpinBox.setEnabled(enable_custom_color)
+        self.ui.bSpinBox.setEnabled(enable_custom_color)
+        self.save_settings()
+
+    def hex_to_rgb(self, hex_code):
+        # Remove the '#' if it's present
+        hex_code = hex_code.lstrip("#")
+
+        # Convert the hex code to RGB values
+        r = int(hex_code[0:2], 16)
+        g = int(hex_code[2:4], 16)
+        b = int(hex_code[4:6], 16)
+
+        return (r, g, b)
+
+    def get_accent_color(self):
+        if darkdetect.isDark():
+            print(self.hex_to_rgb(winaccent.accent_dark_mode))
+            return self.hex_to_rgb(winaccent.accent_dark_mode)
+        else:
+            return self.hex_to_rgb(winaccent.accent_light_mode)
+
+    def get_color(self):
+        if self.ui.colorModeComboBox.currentIndex() == 2:
+            red, green, blue = self.get_accent_color()
+            return RGBColor(red, green, blue)
+        elif self.ui.colorModeComboBox.currentIndex() == 1:
+            red, green, blue = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
+            return RGBColor(red, green, blue)
+        else:
+            red, green, blue = self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value()
+            return RGBColor(red, green, blue)
+
+    def populateComboBox(self):
+        self.ui.colorModeComboBox.addItem("Custom")
+        self.ui.colorModeComboBox.addItem("Random")
+        self.ui.colorModeComboBox.addItem("Accent")
