@@ -18,11 +18,12 @@ def is_openrgb_running():
     return False
 
 
-def get_icon():
-    if is_dark_mode_enabled():
-        return QIcon("resources/icon_light.png")
-    else:
-        return QIcon("resources/icon_dark.png")
+def get_icon(tiny=None):
+    variant = "16" if tiny else "256"
+    theme = "light" if is_dark_mode_enabled() else "dark"
+    print(f"resources/icon_{theme}_{variant}.png")
+
+    return QIcon(f"resources/icon_{theme}_{variant}.png")
 
 
 def hex_to_rgb(hex_code):

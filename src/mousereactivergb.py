@@ -23,7 +23,7 @@ class MouseReactiveRGB(QMainWindow):
         super().__init__()
         self.ui = Ui_MouseReactiveRGB()
         self.ui.setupUi(self)
-        self.setWindowIcon(get_icon())
+        self.setWindowIcon(get_icon(tiny=True))
         self.current_color = off
         self.settings_file = get_settings_file()
         self.first_hide_notification_sent = False
@@ -308,7 +308,7 @@ class MouseReactiveRGB(QMainWindow):
 
     def create_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(get_icon())
+        self.tray_icon.setIcon(get_icon(tiny=True))
         self.tray_icon.setVisible(True)
         self.tray_icon.setToolTip("Mouse Reactive RGB")
         menu = QMenu()
