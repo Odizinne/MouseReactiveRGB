@@ -1,8 +1,8 @@
 import sys
 import os
 import psutil
-import darkdetect
 import winaccent
+import winreg
 from PyQt6.QtGui import QIcon
 from openrgb.utils import RGBColor
 
@@ -19,7 +19,7 @@ def is_openrgb_running():
 
 
 def get_icon():
-    if darkdetect.isDark():
+    if is_dark_mode_enabled():
         return QIcon("resources/icon_light.png")
     else:
         return QIcon("resources/icon_dark.png")
@@ -44,3 +44,12 @@ def get_settings_file():
         return os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
     else:
         return os.path.join(os.getenv("HOME"), ".config", "MouseReactiveRGB", "settings.json")
+
+
+def is_dark_mode_enabled():
+    registry_key = winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+    )
+    value, regtype = winreg.QueryValueEx(registry_key, "AppsUseLightTheme")
+    winreg.CloseKey(registry_key)
+    return value == 0

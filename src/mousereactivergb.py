@@ -362,7 +362,6 @@ class MouseReactiveRGB(QMainWindow):
         self.tray_icon.showMessage(
             "Mouse Reactive RGB",
             "The application is still running in the background.",
-            # QSystemTrayIcon.MessageIcon.Information,
             get_icon(),
         )
         self.first_hide_notification_sent = True

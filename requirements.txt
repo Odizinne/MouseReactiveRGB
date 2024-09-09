@@ -1,6 +1,5 @@
 cx_Freeze==7.2.0
 cx_Logging==3.2.0
-darkdetect==0.8.0
 lief==0.14.1
 openrgb-python @ git+https://github.com/jath03/openrgb-python@43c8bda6f9ff1ea76eed55e5647bdcd44d653289
 psutil==6.0.0
