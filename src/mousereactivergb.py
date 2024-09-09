@@ -1,32 +1,17 @@
 from PyQt6.QtWidgets import QMainWindow, QSystemTrayIcon, QMenu, QApplication
-from PyQt6.QtCore import QTimer, Qt, pyqtSlot, QMetaObject, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtCore import QTimer, Qt, QMetaObject, pyqtSignal, pyqtSlot
+from PyQt6.QtGui import QAction
 from ui_mousereactivergb import Ui_MouseReactiveRGB
 from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor, DeviceType
 from pynput.mouse import Listener
 from color_utils import set_frame_color_based_on_window
+from utils import is_openrgb_running, get_icon, get_accent_color, get_settings_file, off
 import os
 import sys
 import threading
 import json
 import random
-import psutil
-import darkdetect
-import winaccent
-
-if sys.platform == "win32":
-    settings_file = os.path.join(os.getenv("APPDATA"), "MouseReactiveRGB", "settings.json")
-else:
-    settings_file = os.path.join(os.getenv("HOME"), ".config", "MouseReactiveRGB", "settings.json")
-
-
-def is_openrgb_running():
-    openrgb_executable = "openrgb.exe" if sys.platform == "win32" else "openrgb"
-    for process in psutil.process_iter(["pid", "name"]):
-        if process.info["name"].lower() == openrgb_executable:
-            return True
-    return False
 
 
 class MouseReactiveRGB(QMainWindow):
@@ -37,20 +22,17 @@ class MouseReactiveRGB(QMainWindow):
         super().__init__()
         self.ui = Ui_MouseReactiveRGB()
         self.ui.setupUi(self)
-        self.setWindowIcon(QIcon("resources/icon.png"))
-        self.initial_color = RGBColor(0, 0, 0)
-        self.current_color = self.initial_color
-        self.settings_file = settings_file
+        self.setWindowIcon(get_icon())
+        self.current_color = off
+        self.settings_file = get_settings_file()
+        self.first_hide_notification_sent = False
         self.client = None
         self.mouse = None
         self.connected = False
         self.run_effect = False
         self.first_run = False
-        self.looping = None
 
-        set_frame_color_based_on_window(self, self.ui.settingsFrame)
-        set_frame_color_based_on_window(self, self.ui.effectFrame)
-        self.populateComboBox()
+        self.prepare_ui()
         self.load_settings()
         self.connect_ui_signals()
         self.create_tray_icon()
@@ -77,6 +59,11 @@ class MouseReactiveRGB(QMainWindow):
 
         if self.first_run:
             self.show()
+
+    def prepare_ui(self):
+        set_frame_color_based_on_window(self, self.ui.settingsFrame)
+        set_frame_color_based_on_window(self, self.ui.effectFrame)
+        self.populateComboBox()
 
     def connect_ui_signals(self):
         self.ui.rSpinBox.valueChanged.connect(self.save_settings)
@@ -108,7 +95,7 @@ class MouseReactiveRGB(QMainWindow):
                     if "Direct" in [mode.name for mode in device.modes]:
                         self.mouse = device
                         self.mouse.set_mode("Direct")
-                        self.mouse.set_color(self.initial_color)
+                        self.mouse.set_color(off)
                         print(f"Connected to {device.name} in Direct mode.")
                         return True
                     else:
@@ -211,7 +198,6 @@ class MouseReactiveRGB(QMainWindow):
 
         try:
             if self.ui.fadeOnReleaseCheckBox.isChecked() and self.ui.colorModeComboBox.currentIndex() == 1:
-                # self.mouse.set_color(self.loop_color)
                 self.current_color = self.loop_color
 
             self.mouse.set_color(self.current_color)
@@ -226,11 +212,8 @@ class MouseReactiveRGB(QMainWindow):
 
     def fade_out(self):
         if self.current_frame >= self.total_frames:
-            # Uncomment if mouse is not fully off after fade
-
             try:
-                # Set color to black after fade ends
-                self.mouse.set_color(RGBColor(0, 0, 0))
+                self.mouse.set_color(off)  # Set color to black after fade ends
             except Exception as e:
                 print(f"Failed to set color: {e}")
                 self.connected = False
@@ -287,6 +270,8 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.gSpinBox.setEnabled(enable_custom_color)
                 self.ui.bSpinBox.setEnabled(enable_custom_color)
 
+                self.first_hide_notification_sent = settings["firstHideNotificationSent"]
+
                 if settings["autostart"]:
                     self.ui.startstopButton.setText("Stop effect")
                     self.run_effect = True
@@ -310,14 +295,14 @@ class MouseReactiveRGB(QMainWindow):
             "autostart": self.ui.autostartCheckBox.isChecked(),
             "fadeOnRelease": self.ui.fadeOnReleaseCheckBox.isChecked(),
             "colorMode": self.ui.colorModeComboBox.currentIndex(),
+            "firstHideNotificationSent": self.first_hide_notification_sent,
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
 
     def create_tray_icon(self):
-        icon = QIcon("resources/icon.png")
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(icon)
+        self.tray_icon.setIcon(get_icon())
         self.tray_icon.setVisible(True)
         self.tray_icon.setToolTip("Mouse Reactive RGB")
         menu = QMenu()
@@ -333,7 +318,7 @@ class MouseReactiveRGB(QMainWindow):
         self.fade_timer.stop()
         self.retry_timer.stop()
         if self.mouse:
-            self.mouse.set_color(RGBColor(0, 0, 0))
+            self.mouse.set_color(off)
         self.disconnect_from_openrgb()
 
         QApplication.quit()
@@ -347,7 +332,7 @@ class MouseReactiveRGB(QMainWindow):
             self.fade_timer.stop()
             self.run_effect = False
             if self.mouse:
-                self.mouse.set_color(RGBColor(0, 0, 0))
+                self.mouse.set_color(off)
 
     def on_colorModeComboBox_changed(self):
         enable_custom_color = self.ui.colorModeComboBox.currentIndex() == 0
@@ -356,24 +341,9 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.bSpinBox.setEnabled(enable_custom_color)
         self.save_settings()
 
-    def hex_to_rgb(self, hex_code):
-        hex_code = hex_code.lstrip("#")
-
-        r = int(hex_code[0:2], 16)
-        g = int(hex_code[2:4], 16)
-        b = int(hex_code[4:6], 16)
-
-        return (r, g, b)
-
-    def get_accent_color(self):
-        if darkdetect.isDark():
-            return self.hex_to_rgb(winaccent.accent_dark_mode)
-        else:
-            return self.hex_to_rgb(winaccent.accent_light_mode)
-
     def get_color(self):
         if self.ui.colorModeComboBox.currentIndex() == 2:
-            red, green, blue = self.get_accent_color()
+            red, green, blue = get_accent_color()
             return RGBColor(red, green, blue)
         elif self.ui.colorModeComboBox.currentIndex() == 1:
             red, green, blue = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
@@ -387,3 +357,17 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.colorModeComboBox.addItem("Random")
         if sys.platform == "win32":
             self.ui.colorModeComboBox.addItem("Accent")
+
+    def send_first_hide_notification(self):
+        self.tray_icon.showMessage(
+            "Mouse Reactive RGB",
+            "The application is still running in the background.",
+            # QSystemTrayIcon.MessageIcon.Information,
+            get_icon(),
+        )
+        self.first_hide_notification_sent = True
+        self.save_settings()
+
+    def closeEvent(self, event):
+        event.accept()
+        self.send_first_hide_notification()
