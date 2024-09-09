@@ -12,6 +12,7 @@ import sys
 import threading
 import json
 import random
+import time
 
 
 class MouseReactiveRGB(QMainWindow):
@@ -137,6 +138,8 @@ class MouseReactiveRGB(QMainWindow):
 
     @pyqtSlot()
     def start_color_loop(self):
+        if not self.run_effect:
+            return
         self.loop_color = self.get_color()
         target_fps = self.ui.fpsSpinBox.value()
         frame_interval = 1000 // target_fps
@@ -176,6 +179,9 @@ class MouseReactiveRGB(QMainWindow):
     @pyqtSlot()
     def start_fade_effect(self):
         if not self.mouse:
+            return
+
+        if not self.run_effect:
             return
 
         self.current_frame = 0
@@ -332,6 +338,8 @@ class MouseReactiveRGB(QMainWindow):
             self.fade_timer.stop()
             self.run_effect = False
             if self.mouse:
+                self.color_loop_timer.stop()
+                time.sleep(0.05)
                 self.mouse.set_color(off)
 
     def on_colorModeComboBox_changed(self):
@@ -369,4 +377,5 @@ class MouseReactiveRGB(QMainWindow):
 
     def closeEvent(self, event):
         event.accept()
-        self.send_first_hide_notification()
+        if not self.first_hide_notification_sent:
+            self.send_first_hide_notification()
