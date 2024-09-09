@@ -9,7 +9,9 @@ Windows / Linux (x11 works, wayland untested)
 
 ## Requirements
 
-- OpenRGB Server running
+- OpenRGB Server running (OpenRGB 0.9, 0.91 not working yet)
+
+Download it manually from [openrgb.org](https://openrgb.org/releases.html) or install it with my [OpenRGB-Installer](https://github.com/Odizinne/OpenRGB-Installer/releases/latest) (Windows only)
 - Direct mode compatible mouse
 
 It will use the first detected mouse with direct mode support.
