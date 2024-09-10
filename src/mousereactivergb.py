@@ -13,6 +13,7 @@ import threading
 import json
 import random
 import time
+import colorsys
 
 
 class MouseReactiveRGB(QMainWindow):
@@ -67,19 +68,8 @@ class MouseReactiveRGB(QMainWindow):
         self.populateComboBox()
 
     def connect_ui_signals(self):
-        # self.ui.rSpinBox.valueChanged.connect(self.save_settings)
-        # self.ui.gSpinBox.valueChanged.connect(self.save_settings)
-        # self.ui.bSpinBox.valueChanged.connect(self.save_settings)
-        # self.ui.ipLineEdit.editingFinished.connect(self.save_settings)
-        # self.ui.portSpinBox.valueChanged.connect(self.save_settings)
-        # self.ui.fadeDurationSlider.sliderReleased.connect(self.save_settings)
-        # self.ui.fpsSpinBox.valueChanged.connect(self.save_settings)
-        # self.ui.autostartCheckBox.stateChanged.connect(self.save_settings)
         self.ui.startstopButton.clicked.connect(self.on_startstopButton_clicked)
-        # self.ui.fadeOnReleaseCheckBox.stateChanged.connect(self.save_settings)
         self.ui.colorModeComboBox.currentIndexChanged.connect(self.on_colorModeComboBox_changed)
-        # self.ui.triggerComboBox.currentIndexChanged.connect(self.save_settings)
-        # self.ui.brightnessSlider.valueChanged.connect(self.save_settings)
 
     def connect_to_openrgb(self):
         ip = self.ui.ipLineEdit.text()
@@ -275,6 +265,7 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.colorModeComboBox.setCurrentIndex(settings.get("colorMode", 0))
                 self.ui.triggerComboBox.setCurrentIndex(settings.get("trigger", 0))
                 self.ui.brightnessSlider.setValue(settings.get("brightness", 100))
+                self.ui.saturationSlider.setValue(settings.get("saturation", 100))
 
                 enable_custom_color = self.ui.colorModeComboBox.currentIndex() == 0
                 self.ui.rSpinBox.setEnabled(enable_custom_color)
@@ -309,6 +300,7 @@ class MouseReactiveRGB(QMainWindow):
             "firstHideNotificationSent": self.first_hide_notification_sent,
             "trigger": self.ui.triggerComboBox.currentIndex(),
             "brightness": self.ui.brightnessSlider.value(),
+            "saturation": self.ui.saturationSlider.value(),
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
@@ -365,9 +357,27 @@ class MouseReactiveRGB(QMainWindow):
         else:
             red, green, blue = self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value()
 
-        brightness = self.ui.brightnessSlider.value() / 255
+        brightness = self.ui.brightnessSlider.value() / 100
+        saturation = self.ui.saturationSlider.value() / 100
 
-        return RGBColor(int(red * brightness), int(green * brightness), int(blue * brightness))
+        # Convert RGB to HSV
+        r, g, b = red / 255.0, green / 255.0, blue / 255.0
+        h, s, v = colorsys.rgb_to_hsv(r, g, b)
+
+        # Apply saturation adjustment
+        s *= saturation
+        if s > 1:
+            s = 1
+
+        # Apply brightness adjustment
+        v *= brightness
+        if v > 1:
+            v = 1
+
+        # Convert HSV back to RGB
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+
+        return RGBColor(int(r * 255), int(g * 255), int(b * 255))
 
     def populateComboBox(self):
         self.ui.colorModeComboBox.addItem("Custom")
