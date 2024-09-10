@@ -4,7 +4,7 @@ from PyQt6.QtGui import QAction
 from ui_mousereactivergb import Ui_MouseReactiveRGB
 from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor, DeviceType
-from pynput.mouse import Listener
+from pynput.mouse import Listener, Button
 from color_utils import set_frame_color_based_on_window
 from utils import is_openrgb_running, get_icon, get_accent_color, get_settings_file, off
 import os
@@ -78,6 +78,7 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.startstopButton.clicked.connect(self.on_startstopButton_clicked)
         self.ui.fadeOnReleaseCheckBox.stateChanged.connect(self.save_settings)
         self.ui.colorModeComboBox.currentIndexChanged.connect(self.on_colorModeComboBox_changed)
+        self.ui.triggerComboBox.currentIndexChanged.connect(self.save_settings)
 
     def connect_to_openrgb(self):
         ip = self.ui.ipLineEdit.text()
@@ -153,14 +154,24 @@ class MouseReactiveRGB(QMainWindow):
         if not self.connected:
             return
 
-        if pressed:
-            if self.ui.fadeOnReleaseCheckBox.isChecked():
-                self.start_timer_signal.emit()
-            QMetaObject.invokeMethod(self, "trigger_reactive_effect", Qt.ConnectionType.QueuedConnection)
-        else:
-            if self.ui.fadeOnReleaseCheckBox.isChecked():
-                self.stop_timer_signal.emit()
-                QMetaObject.invokeMethod(self, "start_fade_effect", Qt.ConnectionType.QueuedConnection)
+        # Get the selected value from the ComboBox
+        selected_trigger = self.ui.triggerComboBox.currentText()
+
+        # Filter based on the selected option from the triggerComboBox
+        if (
+            (selected_trigger == "Left / Right" and button in [Button.left, Button.right])
+            or (selected_trigger == "Left only" and button == Button.left)
+            or (selected_trigger == "Any button")
+        ):
+
+            if pressed:
+                if self.ui.fadeOnReleaseCheckBox.isChecked():
+                    self.start_timer_signal.emit()
+                QMetaObject.invokeMethod(self, "trigger_reactive_effect", Qt.ConnectionType.QueuedConnection)
+            else:
+                if self.ui.fadeOnReleaseCheckBox.isChecked():
+                    self.stop_timer_signal.emit()
+                    QMetaObject.invokeMethod(self, "start_fade_effect", Qt.ConnectionType.QueuedConnection)
 
     def color_loop(self):
         self.mouse.set_color(self.loop_color, fast=True)
@@ -246,13 +257,6 @@ class MouseReactiveRGB(QMainWindow):
 
         self.current_frame += 1
 
-    def create_default_settings(self):
-        self.ui.rSpinBox.setValue(255)
-        self.ui.gSpinBox.setValue(66)
-        self.ui.bSpinBox.setValue(0)
-        self.ui.fadeDurationSlider.setValue(500)
-        self.ui.fpsSpinBox.setValue(60)
-
     def load_settings(self):
         os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
         try:
@@ -260,30 +264,31 @@ class MouseReactiveRGB(QMainWindow):
                 with open(self.settings_file, "r") as file:
                     settings = json.load(file)
 
-                self.ui.rSpinBox.setValue(settings["red"])
-                self.ui.gSpinBox.setValue(settings["green"])
-                self.ui.bSpinBox.setValue(settings["blue"])
-                self.ui.fadeDurationSlider.setValue(settings["fadeDuration"])
-                self.ui.ipLineEdit.setText(settings["ip"])
-                self.ui.portSpinBox.setValue(settings["port"])
-                self.ui.fpsSpinBox.setValue(settings["fps"])
-                self.ui.autostartCheckBox.setChecked(settings["autostart"])
-                self.ui.fadeOnReleaseCheckBox.setChecked(settings["fadeOnRelease"])
-                self.ui.colorModeComboBox.setCurrentIndex(settings["colorMode"])
+                self.ui.rSpinBox.setValue(settings.get("red", 255))
+                self.ui.gSpinBox.setValue(settings.get("green", 66))
+                self.ui.bSpinBox.setValue(settings.get("blue", 0))
+                self.ui.fadeDurationSlider.setValue(settings.get("fadeDuration", 500))
+                self.ui.ipLineEdit.setText(settings.get("ip", "127.0.0.1"))
+                self.ui.portSpinBox.setValue(settings.get("port", 6742))
+                self.ui.fpsSpinBox.setValue(settings.get("fps", 60))
+                self.ui.autostartCheckBox.setChecked(settings.get("autostart", False))
+                self.ui.fadeOnReleaseCheckBox.setChecked(settings.get("fadeOnRelease", False))
+                self.ui.colorModeComboBox.setCurrentIndex(settings.get("colorMode", 0))
+                self.ui.triggerComboBox.setCurrentIndex(settings.get("trigger", 0))
 
                 enable_custom_color = self.ui.colorModeComboBox.currentIndex() == 0
                 self.ui.rSpinBox.setEnabled(enable_custom_color)
                 self.ui.gSpinBox.setEnabled(enable_custom_color)
                 self.ui.bSpinBox.setEnabled(enable_custom_color)
 
-                self.first_hide_notification_sent = settings["firstHideNotificationSent"]
+                self.first_hide_notification_sent = settings.get("firstHideNotificationSent", False)
 
                 if settings["autostart"]:
                     self.ui.startstopButton.setText("Stop effect")
                     self.run_effect = True
 
             else:
-                self.create_default_settings()
+                self.save_settings()
                 self.first_run = True
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -302,6 +307,7 @@ class MouseReactiveRGB(QMainWindow):
             "fadeOnRelease": self.ui.fadeOnReleaseCheckBox.isChecked(),
             "colorMode": self.ui.colorModeComboBox.currentIndex(),
             "firstHideNotificationSent": self.first_hide_notification_sent,
+            "trigger": self.ui.triggerComboBox.currentIndex(),
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
@@ -366,6 +372,10 @@ class MouseReactiveRGB(QMainWindow):
         self.ui.colorModeComboBox.addItem("Random")
         if sys.platform == "win32":
             self.ui.colorModeComboBox.addItem("Accent")
+
+        self.ui.triggerComboBox.addItem("Any button")
+        self.ui.triggerComboBox.addItem("Left only")
+        self.ui.triggerComboBox.addItem("Left / Right")
 
     def send_first_hide_notification(self):
         self.tray_icon.showMessage(
