@@ -155,14 +155,12 @@ class MouseReactiveRGB(QMainWindow):
         if not self.connected:
             return
 
-        # Get the selected value from the ComboBox
-        selected_trigger = self.ui.triggerComboBox.currentText()
+        selected_trigger = self.ui.triggerComboBox.currentIndex()
 
-        # Filter based on the selected option from the triggerComboBox
         if (
-            (selected_trigger == "Left / Right" and button in [Button.left, Button.right])
-            or (selected_trigger == "Left only" and button == Button.left)
-            or (selected_trigger == "Any button")
+            (selected_trigger == 2 and button in [Button.left, Button.right])
+            or (selected_trigger == 1 and button == Button.left)
+            or (selected_trigger == 0)
         ):
 
             if pressed:
@@ -324,7 +322,7 @@ class MouseReactiveRGB(QMainWindow):
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.cleanup)
         show_action = QAction("Show", self)
-        show_action.triggered.connect(self.show)
+        show_action.triggered.connect(self.show_window)
         menu.addAction(show_action)
         menu.addAction(exit_action)
         self.tray_icon.setContextMenu(menu)
@@ -395,3 +393,10 @@ class MouseReactiveRGB(QMainWindow):
         self.save_settings()
         if not self.first_hide_notification_sent:
             self.send_first_hide_notification()
+
+    def show_window(self):
+        self.show()
+        if self.isMinimized():
+            self.showNormal()
+        else:
+            self.activateWindow()
