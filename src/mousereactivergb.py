@@ -321,6 +321,7 @@ class MouseReactiveRGB(QMainWindow):
         self.tray_icon.setContextMenu(menu)
 
     def cleanup(self):
+        self.color_loop_timer.stop()
         self.fade_timer.stop()
         self.retry_timer.stop()
         if self.mouse:
