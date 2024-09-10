@@ -378,7 +378,7 @@ class MouseReactiveRGB(QMainWindow):
             self.ui.colorModeComboBox.addItem("Accent")
 
         self.ui.triggerComboBox.addItem("Any button")
-        self.ui.triggerComboBox.addItem("Left only")
+        self.ui.triggerComboBox.addItem("Left button")
         self.ui.triggerComboBox.addItem("Left / Right")
 
     def send_first_hide_notification(self):
