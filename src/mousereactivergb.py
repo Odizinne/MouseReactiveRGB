@@ -67,18 +67,19 @@ class MouseReactiveRGB(QMainWindow):
         self.populateComboBox()
 
     def connect_ui_signals(self):
-        self.ui.rSpinBox.valueChanged.connect(self.save_settings)
-        self.ui.gSpinBox.valueChanged.connect(self.save_settings)
-        self.ui.bSpinBox.valueChanged.connect(self.save_settings)
-        self.ui.ipLineEdit.editingFinished.connect(self.save_settings)
-        self.ui.portSpinBox.valueChanged.connect(self.save_settings)
-        self.ui.fadeDurationSlider.sliderReleased.connect(self.save_settings)
-        self.ui.fpsSpinBox.valueChanged.connect(self.save_settings)
-        self.ui.autostartCheckBox.stateChanged.connect(self.save_settings)
+        # self.ui.rSpinBox.valueChanged.connect(self.save_settings)
+        # self.ui.gSpinBox.valueChanged.connect(self.save_settings)
+        # self.ui.bSpinBox.valueChanged.connect(self.save_settings)
+        # self.ui.ipLineEdit.editingFinished.connect(self.save_settings)
+        # self.ui.portSpinBox.valueChanged.connect(self.save_settings)
+        # self.ui.fadeDurationSlider.sliderReleased.connect(self.save_settings)
+        # self.ui.fpsSpinBox.valueChanged.connect(self.save_settings)
+        # self.ui.autostartCheckBox.stateChanged.connect(self.save_settings)
         self.ui.startstopButton.clicked.connect(self.on_startstopButton_clicked)
-        self.ui.fadeOnReleaseCheckBox.stateChanged.connect(self.save_settings)
+        # self.ui.fadeOnReleaseCheckBox.stateChanged.connect(self.save_settings)
         self.ui.colorModeComboBox.currentIndexChanged.connect(self.on_colorModeComboBox_changed)
-        self.ui.triggerComboBox.currentIndexChanged.connect(self.save_settings)
+        # self.ui.triggerComboBox.currentIndexChanged.connect(self.save_settings)
+        # self.ui.brightnessSlider.valueChanged.connect(self.save_settings)
 
     def connect_to_openrgb(self):
         ip = self.ui.ipLineEdit.text()
@@ -275,6 +276,7 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.fadeOnReleaseCheckBox.setChecked(settings.get("fadeOnRelease", False))
                 self.ui.colorModeComboBox.setCurrentIndex(settings.get("colorMode", 0))
                 self.ui.triggerComboBox.setCurrentIndex(settings.get("trigger", 0))
+                self.ui.brightnessSlider.setValue(settings.get("brightness", 100))
 
                 enable_custom_color = self.ui.colorModeComboBox.currentIndex() == 0
                 self.ui.rSpinBox.setEnabled(enable_custom_color)
@@ -308,6 +310,7 @@ class MouseReactiveRGB(QMainWindow):
             "colorMode": self.ui.colorModeComboBox.currentIndex(),
             "firstHideNotificationSent": self.first_hide_notification_sent,
             "trigger": self.ui.triggerComboBox.currentIndex(),
+            "brightness": self.ui.brightnessSlider.value(),
         }
         with open(self.settings_file, "w") as file:
             json.dump(settings, file)
@@ -359,13 +362,14 @@ class MouseReactiveRGB(QMainWindow):
     def get_color(self):
         if self.ui.colorModeComboBox.currentIndex() == 2:
             red, green, blue = get_accent_color()
-            return RGBColor(red, green, blue)
         elif self.ui.colorModeComboBox.currentIndex() == 1:
-            red, green, blue = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
-            return RGBColor(red, green, blue)
+            red, green, blue = (random.randint(0, 255) for _ in range(3))
         else:
             red, green, blue = self.ui.rSpinBox.value(), self.ui.gSpinBox.value(), self.ui.bSpinBox.value()
-            return RGBColor(red, green, blue)
+
+        brightness = self.ui.brightnessSlider.value() / 255
+
+        return RGBColor(int(red * brightness), int(green * brightness), int(blue * brightness))
 
     def populateComboBox(self):
         self.ui.colorModeComboBox.addItem("Custom")
@@ -388,5 +392,6 @@ class MouseReactiveRGB(QMainWindow):
 
     def closeEvent(self, event):
         event.accept()
+        self.save_settings()
         if not self.first_hide_notification_sent:
             self.send_first_hide_notification()

@@ -35,6 +35,8 @@ def hex_to_rgb(hex_code):
 
 
 def get_accent_color():
+    winaccent.update_accent_colors()
+
     return hex_to_rgb(winaccent.accent_normal)
 
 
