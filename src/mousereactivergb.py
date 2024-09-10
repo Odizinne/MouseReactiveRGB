@@ -163,7 +163,7 @@ class MouseReactiveRGB(QMainWindow):
                 QMetaObject.invokeMethod(self, "start_fade_effect", Qt.ConnectionType.QueuedConnection)
 
     def color_loop(self):
-        self.mouse.set_color(self.loop_color)
+        self.mouse.set_color(self.loop_color, fast=True)
 
     @pyqtSlot()
     def trigger_reactive_effect(self):
