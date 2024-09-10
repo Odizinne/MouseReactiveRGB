@@ -17,7 +17,7 @@ def set_frame_color_based_on_window(window, frame):
     main_bg_color = window.palette().color(QPalette.ColorRole.Window)
 
     if is_dark_mode(main_bg_color):
-        frame_bg_color = adjust_color(main_bg_color, 1.5)
+        frame_bg_color = adjust_color(main_bg_color, 1.75)
     else:
         frame_bg_color = adjust_color(main_bg_color, 0.95)
 

@@ -33,6 +33,7 @@ class MouseReactiveRGB(QMainWindow):
         self.connected = False
         self.run_effect = False
         self.first_run = False
+        self.updating_widgets = False
 
         self.prepare_ui()
         self.load_settings()
@@ -65,6 +66,11 @@ class MouseReactiveRGB(QMainWindow):
     def prepare_ui(self):
         set_frame_color_based_on_window(self, self.ui.settingsFrame)
         set_frame_color_based_on_window(self, self.ui.effectFrame)
+        self.ui.hexLineEdit.textChanged.connect(self.on_hex_line_edit_changed)
+        self.ui.rSpinBox.valueChanged.connect(self.on_rgb_spinbox_changed)
+        self.ui.gSpinBox.valueChanged.connect(self.on_rgb_spinbox_changed)
+        self.ui.bSpinBox.valueChanged.connect(self.on_rgb_spinbox_changed)
+
         self.populateComboBox()
 
     def connect_ui_signals(self):
@@ -271,6 +277,8 @@ class MouseReactiveRGB(QMainWindow):
                 self.ui.rSpinBox.setEnabled(enable_custom_color)
                 self.ui.gSpinBox.setEnabled(enable_custom_color)
                 self.ui.bSpinBox.setEnabled(enable_custom_color)
+                self.ui.hexLineEdit.setEnabled(enable_custom_color)
+                self.on_rgb_spinbox_changed()
 
                 self.first_hide_notification_sent = settings.get("firstHideNotificationSent", False)
 
@@ -410,3 +418,32 @@ class MouseReactiveRGB(QMainWindow):
             self.showNormal()
         else:
             self.activateWindow()
+
+    def on_hex_line_edit_changed(self):
+        if self.updating_widgets:
+            return
+
+        hex_text = self.ui.hexLineEdit.text().strip("#")
+        if len(hex_text) == 6:
+            try:
+                rgb = tuple(int(hex_text[i : i + 2], 16) for i in (0, 2, 4))
+                self.updating_widgets = True
+                self.ui.rSpinBox.setValue(rgb[0])
+                self.ui.gSpinBox.setValue(rgb[1])
+                self.ui.bSpinBox.setValue(rgb[2])
+                self.updating_widgets = False
+            except ValueError:
+                pass
+
+    def on_rgb_spinbox_changed(self):
+        if self.updating_widgets:
+            return
+
+        r = self.ui.rSpinBox.value()
+        g = self.ui.gSpinBox.value()
+        b = self.ui.bSpinBox.value()
+
+        hex_value = f"#{r:02X}{g:02X}{b:02X}"
+        self.updating_widgets = True
+        self.ui.hexLineEdit.setText(hex_value)
+        self.updating_widgets = False
