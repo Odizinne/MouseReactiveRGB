@@ -486,7 +486,7 @@
           </size>
          </property>
          <property name="text">
-          <string>SDK IP / Port</string>
+          <string>OpenRGB SDK IP / Port</string>
          </property>
         </widget>
        </item>

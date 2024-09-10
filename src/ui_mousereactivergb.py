@@ -226,7 +226,7 @@ class Ui_MouseReactiveRGB(object):
         self.label_13.setText(_translate("MouseReactiveRGB", "Brightness"))
         self.ipLineEdit.setText(_translate("MouseReactiveRGB", "127.0.0.1"))
         self.label_11.setText(_translate("MouseReactiveRGB", "Autostart effect"))
-        self.label_5.setText(_translate("MouseReactiveRGB", "SDK IP / Port"))
+        self.label_5.setText(_translate("MouseReactiveRGB", "OpenRGB SDK IP / Port"))
         self.label_9.setText(_translate("MouseReactiveRGB", "Trigger effect on"))
         self.label_8.setText(_translate("MouseReactiveRGB", "Reactive effect settings"))
         self.startstopButton.setText(_translate("MouseReactiveRGB", "Start effect"))
