@@ -122,12 +122,12 @@ class MouseReactiveRGB(QMainWindow):
 
     def on_connection_success(self):
         self.connected = True
-        self.ui.connectionStatusButton.setText("Connected ✅")
+        self.ui.connectionStatusButton.setText(self.tr("Connected ✅"))
         self.retry_timer.stop()
 
     def on_connection_failure(self):
         self.connected = False
-        self.ui.connectionStatusButton.setText("Disconnected ❌")
+        self.ui.connectionStatusButton.setText(self.tr("Disconnected ❌"))
         self.retry_timer.start(1000)
 
     def start_listener(self):
@@ -283,7 +283,7 @@ class MouseReactiveRGB(QMainWindow):
                 self.first_hide_notification_sent = settings.get("firstHideNotificationSent", False)
 
                 if settings["autostart"]:
-                    self.ui.startstopButton.setText("Stop effect")
+                    self.ui.startstopButton.setText(self.tr("Stop effect"))
                     self.run_effect = True
 
             else:
@@ -338,11 +338,11 @@ class MouseReactiveRGB(QMainWindow):
         QApplication.quit()
 
     def on_startstopButton_clicked(self):
-        if self.ui.startstopButton.text() == "Start effect":
-            self.ui.startstopButton.setText("Stop effect")
+        if not self.run_effect:
+            self.ui.startstopButton.setText(self.tr("Stop effect"))
             self.run_effect = True
         else:
-            self.ui.startstopButton.setText("Start effect")
+            self.ui.startstopButton.setText(self.tr("Start effect"))
             self.fade_timer.stop()
             self.run_effect = False
             if self.mouse:
@@ -388,19 +388,19 @@ class MouseReactiveRGB(QMainWindow):
         return RGBColor(int(r * 255), int(g * 255), int(b * 255))
 
     def populateComboBox(self):
-        self.ui.colorModeComboBox.addItem("Custom")
-        self.ui.colorModeComboBox.addItem("Random")
+        self.ui.colorModeComboBox.addItem(self.tr("Custom"))
+        self.ui.colorModeComboBox.addItem(self.tr("Random"))
         if sys.platform == "win32":
-            self.ui.colorModeComboBox.addItem("Accent")
+            self.ui.colorModeComboBox.addItem(self.tr("Accent"))
 
-        self.ui.triggerComboBox.addItem("Any button")
-        self.ui.triggerComboBox.addItem("Left button")
-        self.ui.triggerComboBox.addItem("Left / Right")
+        self.ui.triggerComboBox.addItem(self.tr("Any button"))
+        self.ui.triggerComboBox.addItem(self.tr("Left button"))
+        self.ui.triggerComboBox.addItem(self.tr("Left / Right"))
 
     def send_first_hide_notification(self):
         self.tray_icon.showMessage(
-            "Mouse Reactive RGB",
-            "The application is still running in the background.",
+            self.tr("Mouse Reactive RGB"),
+            self.tr("The application is still running in the background."),
             get_icon(),
         )
         self.first_hide_notification_sent = True

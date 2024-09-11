@@ -21,7 +21,7 @@ def is_openrgb_running():
 def get_icon(tiny=None):
     theme = "light" if is_dark_mode_enabled() else "dark"
 
-    return QIcon(f"resources/icon_{theme}_256.png")
+    return QIcon(f"resources/icons/icon_{theme}_256.png")
 
 
 def hex_to_rgb(hex_code):

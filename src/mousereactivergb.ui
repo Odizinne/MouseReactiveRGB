@@ -573,7 +573,7 @@
           </size>
          </property>
          <property name="text">
-          <string>127.0.0.1</string>
+          <string notr="true">127.0.0.1</string>
          </property>
         </widget>
        </item>

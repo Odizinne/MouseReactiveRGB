@@ -3,10 +3,11 @@ from cx_Freeze import setup, Executable
 
 src_dir = os.path.dirname(os.path.abspath(__file__))
 build_dir = "build/MouseReactiveRGB"
-icon_path = os.path.join(src_dir, "resources/icon.ico")
+icon_path = os.path.join(src_dir, "resources/icons/icon.ico")
 zip_include_packages = ["PyQt6"]
 include_files = [
-    os.path.join(src_dir, "resources/"),
+    os.path.join(src_dir, "resources/icons"),
+    os.path.join(src_dir, "resources/tr"),
 ]
 
 build_exe_options = {
