@@ -20,7 +20,7 @@ if __name__ == "__main__":
     locale = locale_name[:2]
 
     if locale:
-        file_name = f"mousereactivergb_{locale}.qm"
+        file_name = f"resources/tr/mousereactivergb_{locale}.qm"
     else:
         file_name = None
 

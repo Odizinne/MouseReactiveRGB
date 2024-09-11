@@ -75,3 +75,12 @@ Color will be held as long as mouse button is pressed.
 ## Wrong mouse is being detected
 
 "Why do you even use two mice?"
+
+## Translations
+
+- EN (Odizinne)
+- FR (Advitil)
+- DE (AI)
+- ES (AI)
+
+If AI translation is incorrect feel free to tell me / pull request.
