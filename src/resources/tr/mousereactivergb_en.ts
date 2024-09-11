@@ -21,6 +21,16 @@
       <translation type="unfinished" />
     </message>
     <message>
+      <location filename="..\..\mousereactivergb.py" line="322" />
+      <source>Exit</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\..\mousereactivergb.py" line="324" />
+      <source>Show</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <location filename="..\..\mousereactivergb.ui" line="0" />
       <location filename="..\..\mousereactivergb.py" line="345" />
       <source>Start effect</source>
