@@ -1,5 +1,8 @@
 # MouseReactiveRGB
 
+[![Github All Releases](https://img.shields.io/github/downloads/odizinne/MouseReactiveRGB/total.svg)]()
+[![license](https://img.shields.io/github/license/odizinne/MouseReactiveRGB)]()
+
 Reactive effect on mouse button press.
 This is a personal project, far from perfect but enough for my use.
 
