@@ -1,8 +1,10 @@
 import sys
 import os
 import psutil
-import winaccent
-import winreg
+
+if sys.platform == "win32":
+    import winaccent
+    import winreg
 from PyQt6.QtGui import QIcon
 from openrgb.utils import RGBColor
 
@@ -19,8 +21,10 @@ def is_openrgb_running():
 
 
 def get_icon(tiny=None):
-    theme = "light" if is_dark_mode_enabled() else "dark"
-
+    if sys.platform == "win32":
+        theme = "light" if is_dark_mode_enabled() else "dark"
+    else:
+        theme = "light"
     return QIcon(f"resources/icons/icon_{theme}_256.png")
 
 

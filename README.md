@@ -6,7 +6,7 @@
 Reactive effect on mouse button press.
 This is a personal project, far from perfect but enough for my use.
 
-Windows / Linux (x11 works, wayland untested)
+Windows / Linux (x11 works, wayland does not)
 
 ![image](assets/screenshot.png)
 
