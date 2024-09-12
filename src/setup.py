@@ -6,8 +6,7 @@ build_dir = "build/MouseReactiveRGB"
 icon_path = os.path.join(src_dir, "resources/icons/icon.ico")
 zip_include_packages = ["PyQt6"]
 include_files = [
-    os.path.join(src_dir, "resources/icons"),
-    os.path.join(src_dir, "resources/tr"),
+    os.path.join(src_dir, "resources/"),
 ]
 
 build_exe_options = {
